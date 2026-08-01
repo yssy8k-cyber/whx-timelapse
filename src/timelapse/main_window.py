@@ -110,6 +110,25 @@ def _find_ffmpeg() -> str:
     return binary_name
 
 
+def app_data_dir() -> Path:
+    """Return a user-writable directory for captures and rendered videos."""
+
+    if sys.platform == "win32":
+        base = Path(os.getenv("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.getenv("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
+    return base / "WHXTimelapse"
+
+
+def user_path(value: str) -> Path:
+    """Resolve relative operator paths under the writable app data directory."""
+
+    path = Path(value.strip()).expanduser()
+    return path if path.is_absolute() else app_data_dir() / path
+
+
 class JobWorker(QObject):
     """Run one capture/render job outside the Qt event loop."""
 
@@ -287,7 +306,7 @@ class TimelapseWindow(QMainWindow):
         self.transport = QComboBox()
         self.transport.addItems(["tcp", "udp", "http", "https"])
         form.addRow("传输方式", self.transport)
-        self.capture_dir = self._path_row(form, "图片目录", "captures", directory=True)
+        self.capture_dir = self._path_row(form, "图片目录", str(app_data_dir() / "captures"), directory=True)
         self.ffmpeg_edit = QLineEdit(_find_ffmpeg())
         form.addRow("FFmpeg 路径", self.ffmpeg_edit)
         layout.addLayout(form)
@@ -344,7 +363,13 @@ class TimelapseWindow(QMainWindow):
         self.crf_spin.setRange(0, 51)
         self.crf_spin.setValue(18)
         form.addRow("编码质量（CRF）", self.crf_spin)
-        self.video_output = self._path_row(form, "视频输出路径", "output/timelapse.mp4", directory=False, save_file=True)
+        self.video_output = self._path_row(
+            form,
+            "视频输出路径",
+            str(app_data_dir() / "output" / "timelapse.mp4"),
+            directory=False,
+            save_file=True,
+        )
         layout.addLayout(form)
         self.overwrite = QCheckBox("允许覆盖已有视频")
         layout.addWidget(self.overwrite)
@@ -509,7 +534,7 @@ class TimelapseWindow(QMainWindow):
 
     def _start_capture(self) -> None:
         try:
-            output_dir = Path(self.capture_dir.text().strip()).expanduser()
+            output_dir = user_path(self.capture_dir.text())
             config = CaptureConfig(
                 rtsp_url=self.rtsp_edit.text().strip(),
                 output_dir=output_dir,
@@ -520,21 +545,21 @@ class TimelapseWindow(QMainWindow):
                 transport=self.transport.currentText(),
             )
             config.validate()
-            output = Path(self.video_output.text().strip()).expanduser()
+            output = user_path(self.video_output.text())
         except ValueError as exc:
             self._show_error(str(exc))
             return
         self._launch_worker("pipeline", config, output)
 
     def _start_render(self) -> None:
-        input_dir = Path(self.capture_dir.text().strip()).expanduser()
+        input_dir = user_path(self.capture_dir.text())
         try:
             if not input_dir.is_dir():
                 raise ValueError(f"输入目录不存在: {input_dir}")
             if not find_images(input_dir):
                 raise ValueError(f"输入目录中没有可合成的图片: {input_dir}")
             config = CaptureConfig(rtsp_url="local", output_dir=input_dir, ffmpeg_bin=self.ffmpeg_edit.text().strip() or _find_ffmpeg())
-            output = Path(self.video_output.text().strip()).expanduser()
+            output = user_path(self.video_output.text())
         except ValueError as exc:
             self._show_error(str(exc))
             return
@@ -609,7 +634,7 @@ class TimelapseWindow(QMainWindow):
         self._worker = None
 
     def _refresh_preview(self) -> None:
-        directory = Path(self.capture_dir.text().strip()).expanduser()
+        directory = user_path(self.capture_dir.text())
         frames = find_images(directory) if directory.is_dir() else []
         if frames != self._latest_frames:
             self._latest_frames = frames
