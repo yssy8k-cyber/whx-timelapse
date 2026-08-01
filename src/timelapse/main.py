@@ -30,9 +30,9 @@ def _configure_qt_plugins() -> None:
 
 def _crash_log_path() -> Path:
     candidates = [
-        Path.home() / "Library" / "Logs" / "WHXTimelapse" / "startup.log",
-        Path.home() / "AppData" / "Local" / "WHXTimelapse" / "startup.log",
-        Path(tempfile.gettempdir()) / "WHXTimelapse-startup.log",
+        Path.home() / "Library" / "Logs" / "QQQ" / "startup.log",
+        Path.home() / "AppData" / "Local" / "QQQ" / "startup.log",
+        Path(tempfile.gettempdir()) / "QQQ-startup.log",
     ]
     for candidate in candidates:
         try:
@@ -57,7 +57,7 @@ def _report_startup_error(error: BaseException) -> None:
         app = QApplication.instance() or QApplication(sys.argv)
         QMessageBox.critical(
             None,
-            "WHX 延时摄影自动化工具启动失败",
+            "QQQ 启动失败",
             f"程序启动失败，详细日志已保存到：\n{log_path}\n\n{error}",
         )
         app.quit()

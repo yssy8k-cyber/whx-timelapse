@@ -119,7 +119,7 @@ def app_data_dir() -> Path:
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.getenv("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
-    return base / "WHXTimelapse"
+    return base / "QQQ"
 
 
 def user_path(value: str) -> Path:
@@ -217,7 +217,7 @@ class TimelapseWindow(QMainWindow):
         self._poll_timer.start(1000)
 
     def _build_window(self) -> None:
-        self.setWindowTitle("WHX 延时摄影自动化工具")
+        self.setWindowTitle("QQQ")
         self.setMinimumSize(1080, 720)
         self.resize(1280, 820)
         icon = _asset_path("app.icns") or _asset_path("app.ico")
@@ -236,7 +236,7 @@ class TimelapseWindow(QMainWindow):
         brand.setSpacing(2)
         eyebrow = QLabel("LOCAL DESKTOP WORKSPACE")
         eyebrow.setObjectName("eyebrow")
-        title = QLabel("WHX 延时摄影自动化工具")
+        title = QLabel("QQQ")
         title.setObjectName("windowTitle")
         brand.addWidget(eyebrow)
         brand.addWidget(title)
@@ -426,7 +426,7 @@ class TimelapseWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         help_menu = self.menuBar().addMenu("帮助")
         about_action = help_menu.addAction("关于")
-        about_action.triggered.connect(lambda: QMessageBox.about(self, "关于", "WHX 延时摄影自动化工具\nPyQt6 原生桌面客户端"))
+        about_action.triggered.connect(lambda: QMessageBox.about(self, "关于", "QQQ\nPyQt6 原生桌面客户端"))
 
     def _apply_style(self) -> None:
         self.setStyleSheet(
@@ -663,8 +663,8 @@ class TimelapseWindow(QMainWindow):
 
 def create_application() -> QApplication:
     app = QApplication.instance() or QApplication(sys.argv)
-    app.setApplicationName("WHX 延时摄影自动化工具")
-    app.setOrganizationName("WHX")
+    app.setApplicationName("QQQ")
+    app.setOrganizationName("QQQ")
     return app
 
 
