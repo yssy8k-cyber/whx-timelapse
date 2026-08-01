@@ -1,18 +1,18 @@
-#define MyAppName "WHX延时摄影自动化工具"
+#define MyAppName "QQQ"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "WHX"
-#define MyAppExeName "WHXTimelapse.exe"
+#define MyAppExeName "QQQ.exe"
 
 [Setup]
 AppId={{C9D33F65-44EF-4D1E-AB8B-7BB0B3A7B1E0}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\WHX Timelapse
+DefaultDirName={autopf}\QQQ
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\installer-output
-OutputBaseFilename=WHXTimelapse-Windows-Setup
+OutputBaseFilename=QQQ-Windows-Setup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
