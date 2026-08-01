@@ -30,6 +30,17 @@ jobs:
         run: python -m pip install -r requirements-build.txt
       - name: Build application
         run: python scripts/build.py --clean
+      - name: Verify Windows executable startup
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $process = Start-Process -FilePath 'dist\QQQ.exe' -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "QQQ.exe exited during startup verification with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
       - name: Build Windows installer
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -43,7 +54,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WHXTimelapse-${{ matrix.artifact }}
+          name: QQQ-${{ matrix.artifact }}
           path: |
             dist/
             installer-output/
