@@ -64,7 +64,7 @@ if sys.platform == "darwin":
         a.scripts,
         [],
         exclude_binaries=True,
-        name="WHXTimelapse",
+        name="QQQ",
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -74,14 +74,14 @@ if sys.platform == "darwin":
         argv_emulation=False,
         icon=ICON,
     )
-    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="WHXTimelapse")
+    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="QQQ")
     app = BUNDLE(
         coll,
-        name="WHX延时摄影自动化工具.app",
+        name="QQQ.app",
         icon=ICON,
-        bundle_identifier="com.whx.timelapse",
+        bundle_identifier="com.whx.qqq",
         info_plist={
-            "CFBundleDisplayName": "WHX延时摄影自动化工具",
+            "CFBundleDisplayName": "QQQ",
             "NSHighResolutionCapable": True,
         },
     )
@@ -93,7 +93,7 @@ else:
         a.binaries,
         a.datas,
         [],
-        name="WHXTimelapse",
+        name="QQQ",
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
