@@ -26,11 +26,21 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
 
-      - name: Install test dependencies
-        run: python -m pip install pytest
-
       - name: Run tests
-        run: python -m unittest discover -s tests -v
+        run: >-
+          python -m unittest -v
+          tests.test_auto_video_controller
+          tests.test_camera_capture_integration
+          tests.test_capture
+          tests.test_config
+          tests.test_daily_scheduler
+          tests.test_device_config
+          tests.test_logger
+          tests.test_rtsp_reconnect
+          tests.test_rtsp_stream
+          tests.test_theme
+          tests.test_video_controller
+          tests.test_video_generator
 
       - name: Build Windows application
         run: python -m PyInstaller --noconfirm --clean TimelapseStudio.spec
