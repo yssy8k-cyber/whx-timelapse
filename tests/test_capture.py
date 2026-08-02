@@ -1,51 +1,75 @@
+"""定时截图模块的独立测试。"""
+
+from __future__ import annotations
+
+import logging
+import tempfile
+import unittest
+from datetime import datetime
 from pathlib import Path
+from threading import Event
 
-import pytest
+import cv2
+import numpy as np
 
-from timelapse.capture import CaptureConfig, build_snapshot_args, capture_one
-
-
-def test_build_snapshot_args_does_not_transform_rtsp_url():
-    config = CaptureConfig(
-        rtsp_url="rtsp://user:pass@camera/Streaming/Channels/101",
-        output_dir=Path("captures"),
-        timeout=12.5,
-    )
-
-    args = build_snapshot_args(config, Path("captures/frame.part.jpg"))
-
-    assert "-rtsp_transport" in args
-    assert args[args.index("-i") + 1] == config.rtsp_url
-    assert args[args.index("-rw_timeout") + 1] == "12500000"
-    assert args[-1].endswith("frame.part.jpg")
+from capture.capture_worker import CaptureConfig, CaptureWorker
+from capture.image_storage import ImageStorage
 
 
-def test_capture_one_replaces_temporary_file(monkeypatch, tmp_path):
-    calls = []
+class ImageStorageTests(unittest.TestCase):
+    """测试日期目录、文件名和 JPEG 写入。"""
 
-    def fake_run_ffmpeg(args, *, timeout, ffmpeg_bin):
-        calls.append((args, timeout, ffmpeg_bin))
-        Path(args[-1]).write_bytes(b"jpeg")
+    def test_save_frame_uses_date_directory_and_timestamp_name(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage = ImageStorage(Path(directory), 90, logging.getLogger(__name__))
+            frame = np.zeros((20, 30, 3), dtype=np.uint8)
+            captured_at = datetime(2026, 8, 2, 8, 0, 0)
 
-    monkeypatch.setattr("timelapse.capture.run_ffmpeg", fake_run_ffmpeg)
-    config = CaptureConfig("rtsp://camera/stream", tmp_path, timeout=4)
-    destination = tmp_path / "frame_20260731_120000_000000.jpg"
+            image_path = storage.save_frame(frame, captured_at)
 
-    assert capture_one(config, destination) == destination
-    assert destination.read_bytes() == b"jpeg"
-    assert not list(tmp_path.glob("*.part.jpg"))
-    assert calls[0][1] == 9
+            self.assertEqual(
+                image_path,
+                Path(directory) / "2026-08-02" / "20260802_080000.jpg",
+            )
+            self.assertIsNotNone(cv2.imread(str(image_path)))
 
 
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({"interval": 0}, "间隔"),
-        ({"count": 0}, "数量"),
-        ({"count": 1, "duration": 1}, "只能二选一"),
-    ],
-)
-def test_capture_config_validation(kwargs, message):
-    config = CaptureConfig("rtsp://camera/stream", Path("captures"), **kwargs)
-    with pytest.raises(ValueError, match=message):
-        config.validate()
+class CaptureWorkerTests(unittest.TestCase):
+    """测试线程启动、截图成功和安全停止。"""
+
+    def test_worker_captures_a_frame_and_stops(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            captured = Event()
+            frame = np.zeros((20, 30, 3), dtype=np.uint8)
+
+            worker = CaptureWorker(
+                frame_provider=lambda: frame,
+                config=CaptureConfig(0.1, 85, Path(directory)),
+                logger=logging.getLogger(__name__),
+                on_success=lambda _path: captured.set(),
+            )
+
+            self.assertTrue(worker.start())
+            self.assertTrue(captured.wait(2.0))
+            self.assertTrue(worker.stop())
+            self.assertFalse(worker.is_running)
+            self.assertTrue(list(Path(directory).rglob("*.jpg")))
+
+    def test_capture_failure_does_not_kill_worker_before_stop(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            failed = Event()
+            worker = CaptureWorker(
+                frame_provider=lambda: None,
+                config=CaptureConfig(0.1, 85, Path(directory)),
+                logger=logging.getLogger(__name__),
+                on_failure=lambda _error: failed.set(),
+            )
+
+            self.assertTrue(worker.start())
+            self.assertTrue(failed.wait(2.0))
+            self.assertTrue(worker.is_running)
+            self.assertTrue(worker.stop())
+
+
+if __name__ == "__main__":
+    unittest.main()
