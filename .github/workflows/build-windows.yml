@@ -1,0 +1,54 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build Windows application
+        run: python -m PyInstaller --noconfirm --clean TimelapseStudio.spec
+
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimelapseStudio-Windows-${{ github.sha }}
+          path: dist/TimelapseStudio/
+          if-no-files-found: error
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\TimelapseStudio.iss'
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimelapseStudio-Installer-${{ github.sha }}
+          path: dist/installer/TimelapseStudio-Setup.exe
+          if-no-files-found: error
