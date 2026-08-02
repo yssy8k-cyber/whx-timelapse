@@ -1,17 +1,8 @@
 __pycache__/
-.DS_Store
 *.py[cod]
-.pytest_cache/
 .venv/
-venv/
-dist/
+.tools/
 build/
-.pyinstaller/
-*.egg-info/
-.env
-
-# Generated media
-captures/
-output/
-*.mp4
-*.part
+dist/
+config/settings.json
+logs/*.log
