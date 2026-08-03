@@ -33,6 +33,9 @@ class DevicePanelMixin:
         self.rtsp_edit.setText(device.rtsp_url)
         self.username_edit.setText(device.username)
         self.password_edit.setText(device.password)
+        sidebar_label = getattr(self, "sidebar_device_label", None)
+        if sidebar_label is not None:
+            sidebar_label.setText(device.name)
 
     def _save_current_device(self) -> None:
         """把右侧编辑框保存回当前设备对象。"""
@@ -50,6 +53,9 @@ class DevicePanelMixin:
     def _on_device_changed(self, row: int) -> None:
         if row < 0 or row >= len(self.config.devices):
             return
+        device_switch_handler = getattr(self, "_handle_device_switch", None)
+        if device_switch_handler is not None:
+            device_switch_handler()
         self._save_current_device()
         self._active_device_index = row
         self.config.active_device_index = row
