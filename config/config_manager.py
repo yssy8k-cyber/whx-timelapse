@@ -19,9 +19,23 @@ class AppConfig:
     username: str = ""
     password: str = ""
     save_directory: str = r"D:\Timelapse"
+    video_output_directory: str = r"D:\Timelapse\Videos"
     capture_interval: int = 60
     jpeg_quality: int = 95
     video_fps: int = 24
+    image_retention_policy: str = "keep_all"
+    image_retention_days: int = 7
+    video_filename_template: str = "Timelapse_{date}.mp4"
+    video_overwrite_policy: str = "rename"
+    schedule_mode: str = "manual"
+    schedule_interval_seconds: int = 86400
+    schedule_daily_time: str = "00:00"
+    generation_range: str = "today"
+    custom_range_start: str = ""
+    custom_range_end: str = ""
+    auto_open_output_directory: bool = False
+    show_completion_prompt: bool = True
+    log_video_generation: bool = True
     delete_images_after_video: bool = False
     auto_generate_video: bool = False
     dark_mode: bool = False
@@ -29,7 +43,7 @@ class AppConfig:
     active_device_index: int = 0
 
     def sync_legacy_fields(self) -> None:
-        """同步旧版单设备字段，保证旧模块和配置文件兼容。"""
+        """同步旧版字段并规范化视频计划配置。"""
         if not self.devices:
             self.devices.append(DeviceConfig())
         self.active_device_index = max(0, min(self.active_device_index, len(self.devices) - 1))
@@ -37,6 +51,37 @@ class AppConfig:
         self.rtsp_url = active_device.rtsp_url
         self.username = active_device.username
         self.password = active_device.password
+        if self.delete_images_after_video and self.image_retention_policy == "keep_all":
+            self.image_retention_policy = "delete_after_video"
+        if self.image_retention_policy not in {
+            "keep_all",
+            "delete_after_video",
+            "keep_recent_days",
+        }:
+            self.image_retention_policy = "keep_all"
+        self.image_retention_days = max(1, int(self.image_retention_days))
+        self.delete_images_after_video = self.image_retention_policy == "delete_after_video"
+        if self.video_overwrite_policy not in {"overwrite", "rename", "prompt"}:
+            self.video_overwrite_policy = "rename"
+        if self.schedule_mode not in {"interval", "daily", "manual"}:
+            self.schedule_mode = "manual"
+        self.schedule_interval_seconds = max(60, int(self.schedule_interval_seconds))
+        if len(self.schedule_daily_time) != 5 or self.schedule_daily_time[2] != ":":
+            self.schedule_daily_time = "00:00"
+        if self.generation_range not in {
+            "today",
+            "yesterday",
+            "last_24_hours",
+            "last_7_days",
+            "custom",
+        }:
+            self.generation_range = "today"
+        self.video_filename_template = (
+            self.video_filename_template.strip() or "Timelapse_{date}.mp4"
+        )
+        if self.auto_generate_video and self.schedule_mode == "manual":
+            self.schedule_mode = "daily"
+        self.auto_generate_video = self.schedule_mode != "manual"
 
 
 class ConfigManager:
@@ -55,11 +100,20 @@ class ConfigManager:
 
         try:
             with self.config_path.open("r", encoding="utf-8") as file:
-                data: dict[str, Any] = json.load(file)
+                raw_data = json.load(file)
+            if not isinstance(raw_data, dict):
+                raise TypeError("配置文件根节点必须是 JSON 对象")
+            data: dict[str, Any] = raw_data
             valid_names = {field.name for field in fields(AppConfig)}
             cleaned = {key: value for key, value in data.items() if key in valid_names}
             raw_devices = cleaned.pop("devices", None)
             config = AppConfig(**cleaned)
+            if "schedule_mode" in data:
+                config.auto_generate_video = config.schedule_mode != "manual"
+            if "image_retention_policy" in data:
+                config.delete_images_after_video = (
+                    config.image_retention_policy == "delete_after_video"
+                )
             if isinstance(raw_devices, list) and raw_devices:
                 device_fields = {field.name for field in fields(DeviceConfig)}
                 config.devices = [
