@@ -80,6 +80,8 @@ class MainWindow(
         self.disconnect_button.clicked.connect(self._disconnect_camera)
         self.browse_button.clicked.connect(self._choose_directory)
         self.theme_toolbar.theme_changed.connect(self._on_theme_changed)
+        self.start_button.clicked.connect(self._start_capture)
+        self.stop_button.clicked.connect(self._stop_capture)
         self.generate_button.clicked.connect(self._generate_video)
         self.interval_combo.currentIndexChanged.connect(self._on_interval_changed)
         self.camera.connection_succeeded.connect(self._on_connection_succeeded)
