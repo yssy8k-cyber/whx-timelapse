@@ -68,6 +68,8 @@ class RTSPStream:
                 capture = self._capture_factory(full_url)
                 if hasattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC"):
                     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
+                if hasattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC"):
+                    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
                 if not capture.isOpened():
                     capture.release()
                     raise RTSPStreamError("无法打开 RTSP 视频流")
