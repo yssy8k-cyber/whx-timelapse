@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Sequence
 
 from video.ffmpeg_runner import FFmpegExecutionError
+from video.ffmpeg_runner import FFmpegRunner
 from video.video_generator import VideoConfig, VideoGenerationError, VideoGenerator
 
 
@@ -54,7 +55,34 @@ class VideoGeneratorTests(unittest.TestCase):
             self.assertIn("-framerate", runner.arguments)
             self.assertIn("30", runner.arguments)
             self.assertIn("libx264", runner.arguments)
+            self.assertIn("-start_number", runner.arguments)
+            self.assertNotIn("-pattern_type", runner.arguments)
+            self.assertTrue(any(argument.endswith("%08d.jpg") for argument in runner.arguments))
             self.assertTrue(list(image_directory.glob("*.jpg")))
+
+    def test_real_ffmpeg_generates_video_from_staged_sequence(self) -> None:
+        """使用实际 FFmpeg 验证 Windows 兼容的 image2 序列参数。"""
+        import cv2
+        import numpy as np
+
+        with tempfile.TemporaryDirectory() as temp_directory:
+            image_directory = Path(temp_directory) / "2026-08-02"
+            image_directory.mkdir(parents=True)
+            for index in range(3):
+                frame = np.full((48, 64, 3), index * 60, dtype=np.uint8)
+                image_path = image_directory / f"20260802_08000{index}.jpg"
+                self.assertTrue(cv2.imwrite(str(image_path), frame))
+            output_path = Path(temp_directory) / "real.mp4"
+            generator = VideoGenerator(
+                VideoConfig(fps=15),
+                logging.getLogger(__name__),
+                FFmpegRunner(),
+            )
+
+            generated = generator.generate(image_directory, output_path)
+
+            self.assertEqual(generated, output_path)
+            self.assertGreater(output_path.stat().st_size, 0)
 
     def test_deletes_images_only_after_success(self) -> None:
         with tempfile.TemporaryDirectory() as temp_directory:
