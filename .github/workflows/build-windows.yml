@@ -44,6 +44,7 @@ jobs:
           tests.test_theme
           tests.test_video_controller
           tests.test_video_generator
+          tests.test_main_window_ui
 
       - name: Build Windows application
         run: python -m PyInstaller --noconfirm --clean TimelapseStudio.spec
