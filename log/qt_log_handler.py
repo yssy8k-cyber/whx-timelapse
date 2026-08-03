@@ -19,5 +19,9 @@ class QtLogHandler(QObject, logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             self.message_emitted.emit(self.format(record))
+        except RuntimeError:
+            # Qt 对象销毁后，异步日志可能仍有一条收尾消息到达。
+            # 此时丢弃界面消息，不能让日志线程打印二次异常。
+            return
         except Exception:
             self.handleError(record)
