@@ -38,6 +38,7 @@ jobs:
           tests.test_generation_plan
           tests.test_generation_scheduler
           tests.test_logger
+          tests.test_ffmpeg_runner
           tests.test_preview
           tests.test_rtsp_reconnect
           tests.test_rtsp_stream
