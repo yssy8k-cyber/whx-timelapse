@@ -27,6 +27,25 @@ class ConfigManagerTests(unittest.TestCase):
             self.assertTrue(manager.save(expected))
             self.assertEqual(manager.load(), expected)
 
+    def test_video_plan_fields_round_trip(self) -> None:
+        with TemporaryDirectory() as directory:
+            manager = ConfigManager(Path(directory) / "settings.json")
+            expected = AppConfig(
+                video_output_directory="D:/Timelapse/Videos",
+                image_retention_policy="keep_recent_days",
+                image_retention_days=14,
+                video_filename_template="{camera}_{date}_{time}.mp4",
+                video_overwrite_policy="prompt",
+                schedule_mode="interval",
+                schedule_interval_seconds=1800,
+                generation_range="last_24_hours",
+                auto_open_output_directory=True,
+                show_completion_prompt=False,
+            )
+
+            self.assertTrue(manager.save(expected))
+            self.assertEqual(manager.load(), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

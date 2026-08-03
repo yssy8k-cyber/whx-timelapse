@@ -6,6 +6,7 @@ import logging
 import subprocess
 import tempfile
 import unittest
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Sequence
 
@@ -88,6 +89,75 @@ class VideoGeneratorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_directory:
             with self.assertRaises(VideoGenerationError):
                 VideoGenerator(VideoConfig(15)).generate(Path(temp_directory))
+
+    def test_generates_multiple_date_directories_and_renames_collision(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_directory:
+            root = Path(temp_directory) / "images"
+            first = root / "2026-08-02"
+            second = root / "2026-08-03"
+            self._create_images(first, 2)
+            self._create_images(second, 2)
+            output = Path(temp_directory) / "videos" / "Timelapse.mp4"
+            output.parent.mkdir()
+            output.write_bytes(b"old")
+            generator = VideoGenerator(
+                VideoConfig(overwrite_policy="rename"),
+                logging.getLogger(__name__),
+                FakeRunner(),
+            )
+
+            generated = generator.generate_range([first, second], output)
+
+            self.assertEqual(generated.name, "Timelapse_001.mp4")
+            self.assertTrue(generated.exists())
+            self.assertEqual(len(list(first.glob("*.jpg"))), 2)
+            self.assertEqual(len(list(second.glob("*.jpg"))), 2)
+
+    def test_keep_recent_days_removes_old_date_images_after_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_directory:
+            root = Path(temp_directory) / "images"
+            old_date = date.today() - timedelta(days=10)
+            old_directory = root / old_date.isoformat()
+            current_directory = root / date.today().isoformat()
+            self._create_images(old_directory, 1)
+            self._create_images(current_directory, 1)
+            generator = VideoGenerator(
+                VideoConfig(
+                    image_retention_policy="keep_recent_days",
+                    image_retention_days=3,
+                    image_root_directory=root,
+                ),
+                logging.getLogger(__name__),
+                FakeRunner(),
+            )
+
+            generator.generate(current_directory, Path(temp_directory) / "out.mp4")
+
+            self.assertEqual(list(old_directory.glob("*.jpg")), [])
+            self.assertTrue(list(current_directory.glob("*.jpg")))
+
+    def test_recent_time_filter_uses_capture_filename_timestamp(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_directory:
+            directory = Path(temp_directory) / "2026-08-03"
+            directory.mkdir(parents=True)
+            for name in (
+                "20260803_100000.jpg",
+                "20260803_120000.jpg",
+                "20260803_140000.jpg",
+            ):
+                (directory / name).write_bytes(b"jpeg")
+            generator = VideoGenerator(
+                VideoConfig(
+                    image_start_datetime=datetime(2026, 8, 3, 11, 0),
+                    image_end_datetime=datetime(2026, 8, 3, 13, 0),
+                ),
+                logging.getLogger(__name__),
+                FakeRunner(),
+            )
+
+            selected = generator._find_images_in_directories([directory])
+
+            self.assertEqual([path.name for path in selected], ["20260803_120000.jpg"])
 
 
 if __name__ == "__main__":
