@@ -14,8 +14,8 @@ from ui.main_window import MainWindow
 def main() -> int:
     """创建 Qt 应用并启动主窗口。"""
     app = QApplication(sys.argv)
-    app.setApplicationName("Timelapse Studio")
-    app.setOrganizationName("Timelapse Studio")
+    app.setApplicationName("WHX自动化工具")
+    app.setOrganizationName("WHX自动化工具")
 
     config_manager = ConfigManager()
     config = config_manager.load()
