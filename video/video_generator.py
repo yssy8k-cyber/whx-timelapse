@@ -165,7 +165,8 @@ class VideoGenerator:
 
     def _build_arguments(self, image_directory: Path, output_path: Path) -> list[str]:
         """构造不依赖 shell 的 FFmpeg 参数。"""
-        image_pattern = (image_directory / "*.jpg").as_posix()
+        # 使用 image2 的连续编号序列，避免 Windows FFmpeg 不支持 glob。
+        image_pattern = str(image_directory / "%08d.jpg")
         return [
             "-hide_banner",
             "-loglevel",
@@ -173,8 +174,8 @@ class VideoGenerator:
             "-y",
             "-framerate",
             str(self.config.fps),
-            "-pattern_type",
-            "glob",
+            "-start_number",
+            "1",
             "-i",
             image_pattern,
             "-vf",
