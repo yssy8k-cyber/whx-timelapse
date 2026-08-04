@@ -1,10 +1,12 @@
-# Timelapse Studio
+# Hikvision Time-Lapse Client
 
-基于 Python 3.12、PySide6、OpenCV 和 FFmpeg 的海康威视 RTSP 长期延时摄影工具。
+基于 Python 3.12、PySide6、OpenCV 和 FFmpeg 的海康威视 RTSP 长期延时摄影 Windows 桌面客户端。
+
+主程序输出为 `HikvisionTimeLapse.exe`。视频能力可先通过独立的 `VideoMaker_Test.exe` 验证。
 
 ## 当前阶段
 
-第一阶段至第三阶段基础功能已完成：
+第一阶段至发布准备阶段基础功能已完成：
 
 - PySide6 模块化主界面
 - RTSP 地址、用户名和密码输入
@@ -17,9 +19,11 @@
 - 预设及自定义截图间隔
 - 摄像头取帧与截图线程的线程安全连接
 - FFmpeg H.264 MP4 视频生成
-- 15、24、30、60 FPS 视频设置
+- 15、24、25、30、60 FPS 视频设置
 - 视频生成成功后的可选图片清理
 - 独立视频生成线程与 GUI 按钮接入
+- VideoMaker_Test 独立视频验证工具，支持 1000 / 5000 / 10000 / 30000 张图片测试
+- SQLite 保存设备配置、关键软件设置和视频任务记录
 - 固定间隔或每天固定时间触发的视频生成调度服务
 - 视频生成计划、日期范围和完成动作配置保存与启动恢复
 - RTSP 断流检测和 10 秒自动重连
@@ -38,13 +42,13 @@ Windows EXE 和安装程序已配置 GitHub Actions 自动打包。
 
 ## GitHub Actions 打包
 
-推送到 `main` 后，GitHub Actions 会在 Windows runner 上自动安装 Python 3.12、运行测试、构建 EXE，并上传 `TimelapseStudio-Windows-*` Artifact。
-同时会使用 Inno Setup 生成 `TimelapseStudio-Setup.exe`，上传为独立 Artifact。安装默认位于当前用户的 `%LOCALAPPDATA%\Timelapse Studio`，不会要求管理员权限。
+推送到 `main` 后，GitHub Actions 会在 Windows runner 上自动安装 Python 3.12、运行测试、构建 EXE、启动冒烟验证，并上传 `HikvisionTimeLapse-Windows-*` Artifact。
+同时会使用 Inno Setup 生成 `HikvisionTimeLapse-Setup.exe`，上传为独立 Artifact。安装默认位于当前用户的 `%LOCALAPPDATA%\Programs\Hikvision Time-Lapse Client`，不会要求管理员权限；配置、日志和 SQLite 数据库保存在 `%LOCALAPPDATA%\Hikvision Time-Lapse Client`。
 
 本地可使用以下命令验证 PyInstaller 配置：
 
 ```bash
-./.venv/bin/python -m PyInstaller --noconfirm --clean TimelapseStudio.spec
+./.venv/bin/python -m PyInstaller --noconfirm --clean HikvisionTimeLapse.spec
 ```
 
 ## Windows 开发环境
@@ -56,7 +60,7 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-当前项目依赖中包含 `imageio-ffmpeg`，用于提供 FFmpeg 可执行文件；`TimelapseStudio.spec` 会在打包时将其一并放入应用目录。
+当前项目依赖中包含 `imageio-ffmpeg`，用于提供 FFmpeg 可执行文件；`HikvisionTimeLapse.spec` 会在打包时将其一并放入应用目录。
 
 macOS 本地开发环境可以使用项目内的 `.tools/uv` 和 `.venv/bin/python`，不需要改动系统 Python：
 
@@ -66,7 +70,7 @@ macOS 本地开发环境可以使用项目内的 `.tools/uv` 和 `.venv/bin/pyth
 ./.venv/bin/python main.py
 ```
 
-配置文件保存到 `config/settings.json`，日志保存到 `logs/`。
+开发环境配置文件保存到 `config/settings.json`，日志保存到 `logs/`；安装版使用 Windows 用户数据目录保存配置、日志和 SQLite 数据库。
 
 视频计划默认使用 MP4(H.264)，视频文件保存到独立的视频输出目录。文件名模板支持
 `{date}`、`{time}` 和 `{camera}`，例如 `Timelapse_{date}.mp4`。
