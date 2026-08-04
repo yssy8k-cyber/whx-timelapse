@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import inspect
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
@@ -30,6 +31,7 @@ class VideoWorker(QObject):
 
     generated = Signal(str)
     failed = Signal(str)
+    progress = Signal(int, int, str)
 
     def __init__(self, logger: Logger, generator_factory: GeneratorFactory) -> None:
         super().__init__()
@@ -75,7 +77,16 @@ class VideoWorker(QObject):
             generator = self.generator_factory(config, self.logger)
             directories = _as_paths(image_directories)
             if output_path and hasattr(generator, "generate_range"):
-                generated_path = generator.generate_range(directories, Path(output_path))
+                generate_range = generator.generate_range
+                if "progress_callback" in inspect.signature(generate_range).parameters:
+                    generated_path = generate_range(
+                        directories,
+                        Path(output_path),
+                        progress_callback=self.progress.emit,
+                    )
+                else:
+                    # 保持旧版测试替身和第三方生成器兼容。
+                    generated_path = generate_range(directories, Path(output_path))
             elif output_path:
                 generated_path = generator.generate(directories[0], Path(output_path))
             else:
@@ -92,6 +103,7 @@ class VideoController(QObject):
     request_generate = Signal(object, int, bool, str, str, int, str, str, str, str, bool)
     generated = Signal(str)
     failed = Signal(str)
+    progress = Signal(int, int, str)
     running_changed = Signal(bool)
 
     def __init__(
@@ -109,6 +121,7 @@ class VideoController(QObject):
         self.request_generate.connect(self._worker.generate)
         self._worker.generated.connect(self._on_generated)
         self._worker.failed.connect(self._on_failed)
+        self._worker.progress.connect(self.progress)
         self._thread.finished.connect(self._worker.deleteLater)
         self._running = False
         self._thread.start()
