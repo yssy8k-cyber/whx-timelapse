@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 
 class SQLiteDatabase:
@@ -100,10 +101,19 @@ class SQLiteDatabase:
                 (status, error_message, datetime.now().isoformat(timespec="seconds"), task_id),
             )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path)
-        connection.execute("PRAGMA journal_mode=WAL")
-        return connection
+        try:
+            connection.execute("PRAGMA journal_mode=WAL")
+            yield connection
+        except Exception:
+            connection.rollback()
+            raise
+        else:
+            connection.commit()
+        finally:
+            connection.close()
 
 
 __all__ = ["SQLiteDatabase"]
