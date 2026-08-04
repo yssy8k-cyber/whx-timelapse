@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -22,7 +24,7 @@ class AppConfig:
     video_output_directory: str = r"D:\Timelapse\Videos"
     capture_interval: int = 60
     jpeg_quality: int = 95
-    video_fps: int = 24
+    video_fps: int = 25
     image_retention_policy: str = "keep_all"
     image_retention_days: int = 7
     video_filename_template: str = "Timelapse_{date}.mp4"
@@ -38,7 +40,7 @@ class AppConfig:
     log_video_generation: bool = True
     delete_images_after_video: bool = False
     auto_generate_video: bool = False
-    dark_mode: bool = False
+    dark_mode: bool = True
     devices: list[DeviceConfig] = field(default_factory=lambda: [DeviceConfig()])
     active_device_index: int = 0
 
@@ -89,8 +91,14 @@ class ConfigManager:
 
     def __init__(self, config_path: Path | None = None) -> None:
         self.project_dir = Path(__file__).resolve().parent.parent
-        self.config_path = config_path or self.project_dir / "config" / "settings.json"
-        self.log_dir = self.project_dir / "logs"
+        if config_path is None:
+            data_directory = _default_data_directory(self.project_dir)
+            self.config_path = data_directory / "config" / "settings.json"
+            self.log_dir = data_directory / "logs"
+        else:
+            self.config_path = Path(config_path)
+            self.log_dir = self.config_path.parent / "logs"
+        self.database_path = self.config_path.parent / "timelapse.db"
         self.logger = logging.getLogger("timelapse_studio.config")
 
     def load(self) -> AppConfig:
@@ -153,3 +161,16 @@ class ConfigManager:
         except OSError as error:
             self.logger.error("配置文件保存失败: %s", error)
             return False
+
+
+def _default_data_directory(project_dir: Path) -> Path:
+    """选择开发环境或已打包应用的用户可写数据目录。"""
+    if not getattr(sys, "frozen", False):
+        return project_dir
+    if sys.platform.startswith("win"):
+        root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":
+        root = Path.home() / "Library" / "Application Support"
+    else:
+        root = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return root / "Hikvision Time-Lapse Client"
