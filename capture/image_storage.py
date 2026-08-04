@@ -30,7 +30,12 @@ class ImageStorage:
         timestamp = captured_at or datetime.now()
         date_directory = self.root_directory / timestamp.strftime("%Y-%m-%d")
         date_directory.mkdir(parents=True, exist_ok=True)
-        image_path = date_directory / f"{timestamp:%Y%m%d_%H%M%S}.jpg"
+        base_name = f"{timestamp:%Y%m%d_%H%M%S}"
+        image_path = date_directory / f"{base_name}.jpg"
+        suffix = 1
+        while image_path.exists():
+            image_path = date_directory / f"{base_name}_{suffix:03d}.jpg"
+            suffix += 1
         parameters = [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality]
 
         if not cv2.imwrite(str(image_path), frame, parameters):
