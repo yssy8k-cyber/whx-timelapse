@@ -45,7 +45,7 @@ class PanelCommonMixin:
         mark.setObjectName("brandMark")
         brand_text = QVBoxLayout()
         brand_text.setSpacing(0)
-        name = QLabel("WHX自动化工具")
+        name = QLabel("海康威视延时摄影")
         name.setObjectName("brandName")
         version = QLabel("STUDIO  /  1.0")
         version.setObjectName("brandVersion")
