@@ -29,10 +29,13 @@ class DatabaseTests(unittest.TestCase):
             task_id = database.create_video_task("Camera 01", Path("images/2026-08-04"), Path("videos/2026-08-04.mp4"), 10000)
             database.finish_video_task(task_id, "completed")
 
-            with sqlite3.connect(database.path) as connection:
+            connection = sqlite3.connect(database.path)
+            try:
                 self.assertEqual(connection.execute("SELECT COUNT(*) FROM cameras").fetchone()[0], 1)
                 self.assertEqual(connection.execute("SELECT COUNT(*) FROM app_config").fetchone()[0], 2)
                 self.assertEqual(connection.execute("SELECT status FROM video_tasks WHERE id=?", (task_id,)).fetchone()[0], "completed")
+            finally:
+                connection.close()
 
 
 if __name__ == "__main__":
