@@ -193,6 +193,26 @@ class VideoPlanIntegrationMixin:
         )
         if started:
             self._auto_video_active = automatic
+            self._active_video_task_id = None
+            self.video_progress.setValue(0)
+            self.video_progress_label.setText("准备任务...")
+            if getattr(self, "database", None) is not None:
+                try:
+                    image_count = sum(
+                        1
+                        for directory in directories
+                        if directory.exists()
+                        for image_path in directory.iterdir()
+                        if image_path.is_file() and image_path.suffix.lower() == ".jpg"
+                    )
+                    self._active_video_task_id = self.database.create_video_task(
+                        camera_name,
+                        directories[0],
+                        target,
+                        image_count,
+                    )
+                except Exception as error:
+                    self.logger.warning("写入视频任务记录失败: %s", error)
             self.generate_button.setEnabled(False)
             message = "正在自动生成视频..." if automatic else "正在生成视频..."
             self.statusBar().showMessage(message)
@@ -219,6 +239,9 @@ class VideoPlanIntegrationMixin:
 
     def _on_video_generated(self, output_path: str) -> None:
         self._auto_video_active = False
+        self._finish_video_task("completed")
+        self.video_progress.setValue(100)
+        self.video_progress_label.setText("已完成")
         self.generate_button.setEnabled(True)
         if self.log_generation_check.isChecked():
             self.logger.info("视频生成成功：%s", output_path)
@@ -235,11 +258,36 @@ class VideoPlanIntegrationMixin:
     def _on_video_failed(self, message: str) -> None:
         automatic = self._auto_video_active
         self._auto_video_active = False
+        self._finish_video_task("failed", message)
+        self.video_progress_label.setText("生成失败")
         self.generate_button.setEnabled(True)
         self.statusBar().showMessage("视频生成失败")
         self.logger.error("视频生成失败: %s", message)
         if not automatic:
             QMessageBox.warning(self, "视频生成失败", message)
+
+    def _on_video_progress(self, completed: int, total: int, message: str) -> None:
+        """将后台图片准备和 FFmpeg 阶段映射为用户可读进度。"""
+        if message == "视频生成完成":
+            percent = 100
+        elif message == "正在调用 FFmpeg":
+            percent = 90
+        else:
+            percent = round(completed * 80 / total) if total else 0
+        self.video_progress.setValue(percent)
+        self.video_progress_label.setText(f"{message} {completed:,}/{total:,}")
+        self.statusBar().showMessage(f"{message}：{completed:,}/{total:,}")
+
+    def _finish_video_task(self, status: str, error_message: str = "") -> None:
+        task_id = getattr(self, "_active_video_task_id", None)
+        database = getattr(self, "database", None)
+        if task_id is None or database is None:
+            return
+        try:
+            database.finish_video_task(task_id, status, error_message)
+        except Exception as error:
+            self.logger.warning("更新视频任务记录失败: %s", error)
+        self._active_video_task_id = None
 
     def _choose_directory(self) -> None:
         current = self.directory_edit.text().strip() or str(Path.home())
