@@ -34,6 +34,7 @@ jobs:
           tests.test_capture
           tests.test_config
           tests.test_daily_scheduler
+          tests.test_database
           tests.test_device_config
           tests.test_generation_plan
           tests.test_generation_scheduler
@@ -48,13 +49,29 @@ jobs:
           tests.test_main_window_ui
 
       - name: Build Windows application
-        run: python -m PyInstaller --noconfirm --clean TimelapseStudio.spec
+        run: python -m PyInstaller --noconfirm --clean HikvisionTimeLapse.spec
+
+      - name: Build VideoMaker test application
+        run: python -m PyInstaller --noconfirm --clean VideoMaker_Test.spec
+
+      - name: Verify Windows application startup
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $process = Start-Process -FilePath 'dist\HikvisionTimeLapse\HikvisionTimeLapse.exe' -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "HikvisionTimeLapse.exe exited during startup verification with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
 
       - name: Upload Windows application
         uses: actions/upload-artifact@v4
         with:
-          name: TimelapseStudio-Windows-${{ github.sha }}
-          path: dist/TimelapseStudio/
+          name: HikvisionTimeLapse-Windows-${{ github.sha }}
+          path: |
+            dist/HikvisionTimeLapse/
+            dist/VideoMaker_Test/
           if-no-files-found: error
 
       - name: Install Inno Setup
@@ -62,11 +79,11 @@ jobs:
 
       - name: Build Windows installer
         shell: pwsh
-        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\TimelapseStudio.iss'
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\HikvisionTimeLapse.iss'
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: TimelapseStudio-Installer-${{ github.sha }}
-          path: dist/installer/TimelapseStudio-Setup.exe
+          name: HikvisionTimeLapse-Installer-${{ github.sha }}
+          path: dist/installer/HikvisionTimeLapse-Setup.exe
           if-no-files-found: error
