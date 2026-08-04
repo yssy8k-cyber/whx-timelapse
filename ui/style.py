@@ -83,6 +83,14 @@ def apply_main_window_style(window: QMainWindow, dark_mode: bool = False) -> Non
             border: 1px solid {colors['border']};
             border-radius: 10px;
         }}
+        QProgressBar {{
+            background: {colors['input']};
+            border: 1px solid {colors['border']};
+            border-radius: 5px;
+            min-height: 10px;
+            text-align: center;
+        }}
+        QProgressBar::chunk {{ background: #f59e0b; border-radius: 4px; }}
         #cardTitle {{ color: {colors['heading']}; font-size: 16px; font-weight: 700; }}
         #metricTitle {{ color: {colors['muted']}; font-size: 12px; }}
         #metricValue, #cameraMetric, #captureMetric, #videoMetric, #storageMetric {{
