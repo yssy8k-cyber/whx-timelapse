@@ -32,7 +32,7 @@ class PanelMixin(PanelCommonMixin, PanelSettingsMixin):
         title_box.setSpacing(2)
         self.page_title = QLabel("首页")
         self.page_title.setObjectName("pageTitle")
-        self.page_subtitle = QLabel("WHX自动化工具 · 长期延时摄影工作台")
+        self.page_subtitle = QLabel("Hikvision Time-Lapse Client · 长期延时摄影工作台")
         self.page_subtitle.setObjectName("pageSubtitle")
         title_box.addWidget(self.page_title)
         title_box.addWidget(self.page_subtitle)
