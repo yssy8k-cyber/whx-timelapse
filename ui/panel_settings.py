@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QSpinBox,
     QTimeEdit,
@@ -109,6 +110,15 @@ class PanelSettingsMixin:
         self.generate_button = QPushButton("立即生成视频")
         self.generate_button.setIcon(icon("video", "#ffffff"))
         action_layout.addWidget(self.generate_button, 0, Qt.AlignLeft)
+        progress_row = QHBoxLayout()
+        self.video_progress = QProgressBar()
+        self.video_progress.setRange(0, 100)
+        self.video_progress.setValue(0)
+        self.video_progress.setFormat("%p%")
+        self.video_progress_label = QLabel("等待生成任务")
+        progress_row.addWidget(self.video_progress, 1)
+        progress_row.addWidget(self.video_progress_label)
+        action_layout.addLayout(progress_row)
         self._page_layout(page).addWidget(action_card)
         self._page_layout(page).addStretch()
         return page
@@ -128,7 +138,7 @@ class PanelSettingsMixin:
         directory_layout.addWidget(self.open_video_directory_button)
         self.video_format_label = QLabel("MP4 (H.264)")
         self.fps_combo = QComboBox()
-        self.fps_combo.addItems(["15 FPS", "24 FPS", "30 FPS", "60 FPS"])
+        self.fps_combo.addItems(["15 FPS", "24 FPS", "25 FPS", "30 FPS", "60 FPS"])
         self.filename_template_edit = QLineEdit()
         self.filename_template_edit.setPlaceholderText("Timelapse_{date}.mp4")
         self.overwrite_combo = QComboBox()
@@ -228,4 +238,3 @@ class PanelSettingsMixin:
         self._page_layout(page).addWidget(runtime_card)
         self._page_layout(page).addStretch()
         return page
-
