@@ -11,13 +11,16 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from logging import Logger
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 from .ffmpeg_runner import FFmpegExecutionError, FFmpegRunner
 
 
 class VideoGenerationError(RuntimeError):
     """视频生成前置条件或输出校验失败。"""
+
+
+ProgressCallback = Callable[[int, int, str], None]
 
 
 class FFmpegCommandRunner(Protocol):
@@ -30,7 +33,7 @@ class FFmpegCommandRunner(Protocol):
 class VideoConfig:
     """视频生成和图片清理配置。"""
 
-    fps: int = 24
+    fps: int = 25
     delete_images_after_video: bool = False
     image_retention_policy: str = "keep_all"
     image_retention_days: int = 7
@@ -42,8 +45,8 @@ class VideoConfig:
     ffmpeg_path: str | Path = "ffmpeg"
 
     def __post_init__(self) -> None:
-        if self.fps not in (15, 24, 30, 60):
-            raise ValueError("视频 FPS 只支持 15、24、30 或 60")
+        if self.fps not in (15, 24, 25, 30, 60):
+            raise ValueError("视频 FPS 只支持 15、24、25、30 或 60")
         if self.image_retention_policy not in {
             "keep_all",
             "delete_after_video",
@@ -71,18 +74,24 @@ class VideoGenerator:
         self.logger = logger or logging.getLogger(__name__)
         self.runner = runner or FFmpegRunner(config.ffmpeg_path, self.logger)
 
-    def generate(self, image_directory: Path, output_path: Path | None = None) -> Path:
+    def generate(
+        self,
+        image_directory: Path,
+        output_path: Path | None = None,
+        progress_callback: ProgressCallback | None = None,
+    ) -> Path:
         """为一个日期目录生成视频，保留旧版调用接口。"""
         image_directory = Path(image_directory)
         target = output_path or (
             image_directory.parent / f"{image_directory.name}.mp4"
         )
-        return self.generate_range([image_directory], target)
+        return self.generate_range([image_directory], target, progress_callback)
 
     def generate_range(
         self,
         image_directories: Sequence[Path],
         output_path: Path,
+        progress_callback: ProgressCallback | None = None,
     ) -> Path:
         """合成多个日期目录中的图片，并返回最终视频路径。"""
         directories = [Path(directory) for directory in image_directories]
@@ -94,9 +103,11 @@ class VideoGenerator:
         # 该过程不会改变原始图片。
         with tempfile.TemporaryDirectory(prefix="timelapse-sequence-") as temp_dir:
             sequence_directory = Path(temp_dir)
-            self._stage_images(images, sequence_directory)
+            self._stage_images(images, sequence_directory, progress_callback)
+            self._report_progress(progress_callback, len(images), len(images), "正在调用 FFmpeg")
             arguments = self._build_arguments(sequence_directory, target)
             self._run_ffmpeg(arguments, target)
+            self._report_progress(progress_callback, len(images), len(images), "视频生成完成")
 
         self._apply_image_policy(images)
         if self.config.log_generation:
@@ -154,7 +165,11 @@ class VideoGenerator:
         return True
 
     @staticmethod
-    def _stage_images(images: Sequence[Path], target_directory: Path) -> None:
+    def _stage_images(
+        images: Sequence[Path],
+        target_directory: Path,
+        progress_callback: ProgressCallback | None = None,
+    ) -> None:
         target_directory.mkdir(parents=True, exist_ok=True)
         for index, image_path in enumerate(images, start=1):
             staged_path = target_directory / f"{index:08d}.jpg"
@@ -162,6 +177,26 @@ class VideoGenerator:
                 os.link(image_path, staged_path)
             except OSError:
                 shutil.copy2(image_path, staged_path)
+            if progress_callback is not None:
+                try:
+                    progress_callback(index, len(images), "正在准备图片")
+                except Exception:
+                    # 进度显示不应影响视频任务本身。
+                    pass
+
+    @staticmethod
+    def _report_progress(
+        callback: ProgressCallback | None,
+        completed: int,
+        total: int,
+        message: str,
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            callback(completed, total, message)
+        except Exception:
+            pass
 
     def _build_arguments(self, image_directory: Path, output_path: Path) -> list[str]:
         """构造不依赖 shell 的 FFmpeg 参数。"""
@@ -244,4 +279,4 @@ class VideoGenerator:
                     self.logger.error("清理图片失败: %s (%s)", image_path, error)
 
 
-__all__ = ["VideoConfig", "VideoGenerationError", "VideoGenerator"]
+__all__ = ["ProgressCallback", "VideoConfig", "VideoGenerationError", "VideoGenerator"]
