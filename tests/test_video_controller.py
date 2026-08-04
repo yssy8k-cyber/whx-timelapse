@@ -33,6 +33,17 @@ class FailingVideoGenerator(FakeVideoGenerator):
         raise RuntimeError("模拟 FFmpeg 失败")
 
 
+class ProgressVideoGenerator(FakeVideoGenerator):
+    """模拟支持进度回调的生成器。"""
+
+    def generate_range(self, image_directories, output_path, progress_callback=None):
+        if progress_callback is not None:
+            progress_callback(1, 2, "正在准备图片")
+            progress_callback(2, 2, "视频生成完成")
+        output_path.write_bytes(b"fake video")
+        return output_path
+
+
 class VideoControllerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.app = QApplication.instance() or QApplication([])
@@ -72,6 +83,25 @@ class VideoControllerTests(unittest.TestCase):
 
             self.assertEqual(errors, ["模拟 FFmpeg 失败"])
             self.assertFalse(controller.is_running)
+            controller.shutdown()
+
+    def test_generation_progress_is_forwarded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            controller = VideoController(
+                logging.getLogger(__name__),
+                generator_factory=lambda config, logger: ProgressVideoGenerator(config, logger),
+            )
+            progress: list[tuple[int, int, str]] = []
+            controller.progress.connect(lambda completed, total, message: progress.append((completed, total, message)))
+            output_path = Path(directory) / "output.mp4"
+
+            self.assertTrue(
+                controller.start(Path(directory), 25, False, output_path=output_path)
+            )
+            QTimer.singleShot(1000, self.app.quit)
+            self.app.exec()
+
+            self.assertEqual(progress[-1], (2, 2, "视频生成完成"))
             controller.shutdown()
 
 
