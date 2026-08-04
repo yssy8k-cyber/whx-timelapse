@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from camera.rtsp_camera import CameraController
 from camera.preview_controller import PreviewController
 from config.config_manager import AppConfig, ConfigManager
+from database import SQLiteDatabase
 from log.logger import add_log_handler
 from log.qt_log_handler import QtLogHandler
 from ui.auto_video_controller import AutoVideoController
@@ -44,11 +45,13 @@ class MainWindow(
         config_manager: ConfigManager,
         config: AppConfig,
         logger: logging.Logger,
+        database: SQLiteDatabase | None = None,
     ) -> None:
         super().__init__()
         self.config_manager = config_manager
         self.config = config
         self.logger = logger
+        self.database = database
         self.theme_toolbar = ThemeToolbar(self)
         self.addToolBar(Qt.TopToolBarArea, self.theme_toolbar)
         self.camera = CameraController(self)
@@ -62,7 +65,7 @@ class MainWindow(
         add_log_handler(self.logger, self.log_handler)
         self._connected = False
 
-        self.setWindowTitle("WHX自动化工具")
+        self.setWindowTitle("海康威视延时摄影系统 · Hikvision Time-Lapse Client")
         self.resize(1180, 980)
         self.setMinimumSize(940, 760)
         self._build_ui()
@@ -109,6 +112,7 @@ class MainWindow(
         self.capture_controller.capture_failed.connect(self._on_capture_failed)
         self.video_controller.generated.connect(self._on_video_generated)
         self.video_controller.failed.connect(self._on_video_failed)
+        self.video_controller.progress.connect(self._on_video_progress)
         self.video_controller.generated.connect(lambda _path: self._set_dashboard_video_state("已完成"))
         self.video_controller.failed.connect(lambda _message: self._set_dashboard_video_state("生成失败"))
         self.auto_video_controller.generation_requested.connect(self._start_auto_video)
@@ -138,6 +142,20 @@ class MainWindow(
         if not self.config_manager.save(self.config):
             self.statusBar().showMessage("配置保存失败")
         else:
+            if self.database is not None:
+                try:
+                    self.database.replace_cameras(self.config.devices)
+                    self.database.save_app_config(
+                        {
+                            "capture_interval": self.config.capture_interval,
+                            "save_directory": self.config.save_directory,
+                            "video_output_directory": self.config.video_output_directory,
+                            "video_fps": self.config.video_fps,
+                            "dark_mode": self.config.dark_mode,
+                        }
+                    )
+                except Exception as error:
+                    self.logger.exception("SQLite 配置保存失败: %s", error)
             self.logger.info("配置已保存")
 
     def _selected_interval_seconds(self) -> int:
