@@ -60,6 +60,23 @@ class VideoGeneratorTests(unittest.TestCase):
             self.assertTrue(any(argument.endswith("%08d.jpg") for argument in runner.arguments))
             self.assertTrue(list(image_directory.glob("*.jpg")))
 
+    def test_reports_progress_while_staging_images(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_directory:
+            image_directory = Path(temp_directory) / "2026-08-02"
+            self._create_images(image_directory, 3)
+            progress: list[tuple[int, int, str]] = []
+            generator = VideoGenerator(VideoConfig(fps=25), logging.getLogger(__name__), FakeRunner())
+
+            generator.generate(
+                image_directory,
+                progress_callback=lambda completed, total, message: progress.append(
+                    (completed, total, message)
+                ),
+            )
+
+            self.assertEqual([item[0] for item in progress[:3]], [1, 2, 3])
+            self.assertEqual(progress[-1][2], "视频生成完成")
+
     def test_real_ffmpeg_generates_video_from_staged_sequence(self) -> None:
         """使用实际 FFmpeg 验证 Windows 兼容的 image2 序列参数。"""
         import cv2
