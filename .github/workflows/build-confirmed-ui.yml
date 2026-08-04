@@ -1,0 +1,60 @@
+name: Build Confirmed PyQt6 Windows Client
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decode confirmed client source
+        shell: powershell
+        run: |
+          $base64 = (Get-Content -Raw client-v2-source.zip.b64).Trim()
+          [System.IO.File]::WriteAllBytes("client-v2-source.zip", [Convert]::FromBase64String($base64))
+          if (Test-Path "client-v2") {
+            Remove-Item "client-v2" -Recurse -Force
+          }
+          Expand-Archive -Path "client-v2-source.zip" -DestinationPath "client-v2"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install FFmpeg and Inno Setup
+        shell: powershell
+        run: choco install ffmpeg innosetup -y --no-progress
+
+      - name: Install Python dependencies and test
+        shell: powershell
+        working-directory: client-v2
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pytest -q
+
+      - name: Build application
+        shell: powershell
+        working-directory: client-v2
+        run: python -m PyInstaller --noconfirm --clean HikvisionTimeLapse.spec
+
+      - name: Copy FFmpeg into installer payload
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "client-v2\ffmpeg" | Out-Null
+          Copy-Item (Get-Command ffmpeg.exe).Source "client-v2\ffmpeg\ffmpeg.exe" -Force
+
+      - name: Build Inno Setup installer
+        shell: powershell
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "client-v2\HikvisionTimeLapse.iss"
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: HikvisionTimeLapse-Confirmed-UI-Installer
+          path: client-v2/installer-output/HikvisionTimeLapse_Setup_*.exe
